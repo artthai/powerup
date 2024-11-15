@@ -95,7 +95,7 @@
                 console.log(Math.ceil(time))
                 for (i = 1; i <= time; i++) {
                     let value = 5000
-                    if (i === time) {
+                    if (i === time && quantity % 5000) {
                         value = quantity % 5000
                     }
                     console.log(i)
