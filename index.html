@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PowerUp</title>
+</head>
+
+<body>
+    <h1>PowerUP</h1>
+    <button id="login">Login with Anchor Wallet</button>
+
+    <!-- ช่องสำหรับใส่ปลายทางบัญชี -->
+    <div>
+        <label for="destination">Destination Account:</label>
+        <input type="text" id="destination" placeholder="Enter destination account" />
+    </div>
+
+    <div>
+        <label for="quantity">Stake (WAX):</label>
+        <input type="number" id="quantity" value="1000" step="100" />
+    </div>
+
+    <button id="transfer" disabled>Stake</button>
+    <p id="status">Status: Not logged in</p>
+
+    <!-- เพิ่ม CDN สำหรับ AnchorLink และ AnchorLinkBrowserTransport -->
+    <script src="https://unpkg.com/anchor-link@3"></script>
+    <script src="https://unpkg.com/anchor-link-browser-transport@3"></script>
+
+    <script>
+        // กำหนดการตั้งค่าของเครือข่าย WAX
+        const network = {
+            chainId: '1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4', // Mainnet chain ID
+            rpc: "https://wax.greymass.com", // Mainnet RPC URL
+        };
+        const exponent = 22022305
+        const netfrac = 5686367
+        const fixrateeos = 0.15
+        // สร้างการเชื่อมต่อกับ AnchorLink โดยใช้ AnchorLinkBrowserTransport จาก CDN
+        const transport = new AnchorLinkBrowserTransport();
+        const link = new AnchorLink({
+            transport,
+            chains: [{ chainId: network.chainId, nodeUrl: network.rpc }],
+        });
+
+        let session;
+
+        // ฟังก์ชันสำหรับการ Login
+        document.getElementById('login').onclick = async () => {
+            try {
+                const result = await link.login('mydapp');
+                session = result.session;
+                document.getElementById('status').textContent = `Status: Logged in as ${session.auth.actor}`;
+                document.getElementById('transfer').disabled = false;
+            } catch (error) {
+                console.error("Login error:", error);
+                document.getElementById('status').textContent = "Login failed.";
+            }
+        };
+
+        // ฟังก์ชันสำหรับการโอนเหรียญ WAX
+        document.getElementById('transfer').onclick = async () => {
+            if (!session) {
+                alert("Please log in first.");
+                return;
+            }
+            let pwu = []
+            const destination = document.getElementById('destination').value.trim();
+            const quantity = document.getElementById('quantity').value.trim();
+
+            if (!destination || !quantity || isNaN(quantity) || parseFloat(quantity) <= 0) {
+                alert("Please enter a valid destination account and amount.");
+                return;
+            }
+            if (quantity <= 5000) {
+                const transferAction = {
+                    account: 'eosio',
+                    name: 'powerup',
+                    authorization: [session.auth],
+                    data: {
+                        cpu_frac: ((exponent * quantity)) + 10,
+                        days: 1,
+                        max_payment: `${parseFloat(fixrateeos * quantity / 100).toFixed(8)} WAX`,
+                        net_frac: parseFloat(netfrac),
+                        payer: session.auth.actor,
+                        receiver: destination,
+                    },
+                };
+                pwu.push(transferAction)
+            }
+            else {
+                const time = Math.ceil(quantity / 5000)
+                console.log(Math.ceil(time))
+                for (i = 1; i <= time; i++) {
+                    let value = 5000
+                    if (i === time) {
+                        value = quantity % 5000
+                    }
+                    console.log(i)
+                    console.log(value)
+                    const transferAction = {
+                        account: 'eosio',
+                        name: 'powerup',
+                        authorization: [session.auth],
+                        data: {
+                            cpu_frac: ((exponent * value)) + 10,
+                            days: 1,
+                            max_payment: `${parseFloat(fixrateeos * value / 100).toFixed(8)} WAX`,
+                            net_frac: parseFloat(netfrac),
+                            payer: session.auth.actor,
+                            receiver: destination,
+                        },
+                    };
+                    pwu.push(transferAction)
+                }
+            }
+
+
+            try {
+                const result = await session.transact({ actions: pwu }, { blocksBehind: 3, expireSeconds: 30 });
+                document.getElementById('status').textContent = `Transfer successful: ${result.transactionId}`;
+                console.log("Transaction result:", result);
+            } catch (error) {
+                console.error("Transfer error:", error);
+                document.getElementById('status').textContent = `Transfer failed : ${error}`;
+            }
+        };
+    </script>
+</body>
+
+</html>
