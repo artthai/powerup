@@ -40,6 +40,7 @@
         };
         const cpufrac = 22022305
         const netfrac = 6815707
+        let rate = 0
         // สร้างการเชื่อมต่อกับ AnchorLink
         const transport = new AnchorLinkBrowserTransport();
         const link = new AnchorLink({
@@ -64,20 +65,16 @@
         // อัปเดตค่า Total เมื่อเปลี่ยนค่าของ Stake
         document.getElementById('quantity').addEventListener('input', async () => {
             const quantity = parseFloat(document.getElementById('quantity').value.trim());
+            console.log(rate)
             if (isNaN(quantity) || quantity <= 0) {
                 document.getElementById('total').textContent = "Invalid input";
                 return;
             }
 
-            // ดึงข้อมูล CPU Config
-            const cpuConfig = await fetchCPUConfig();
-            if (!cpuConfig) {
-                document.getElementById('total').textContent = "Error fetching config";
-                return;
-            }
+
 
             // คำนวณค่าธรรมเนียม (Total)
-            const fee = calculatePowerUpFee(cpuConfig, quantity * 100000000); // ปรับ `extraUtilization` ตาม Stake
+            const fee = quantity * rate / 100 // ปรับ `extraUtilization` ตาม Stake
             document.getElementById('total').textContent = `${fee.toFixed(8)} WAX`;
         });
 
@@ -119,6 +116,7 @@
         async function fetchRate() {
             const cpuConfig = await fetchCPUConfig();
             const fee = calculatePowerUpFee(cpuConfig, 10000000000);
+            rate = fee
             document.getElementById("total").textContent = `${fee.toFixed(8)} WAX`;
         }
         // ฟังก์ชันคำนวณค่าธรรมเนียม Power-Up Fee
@@ -216,7 +214,7 @@
                         data: {
                             cpu_frac: ((cpufrac * amount)) + 10,
                             days: 1,
-                            ax_payment: `${(fee+0.1).toFixed(8)} WAX`,
+                            max_payment: `${((amount/100*rate)+0.1).toFixed(8)} WAX`,
                             net_frac: parseFloat(netfrac),
                             payer: session.auth.actor,
                             receiver: destination,
