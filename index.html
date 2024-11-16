@@ -19,9 +19,12 @@
 
     <div>
         <label for="quantity">Stake (WAX):</label>
-        <input type="number" id="quantity" value="1000" step="100" />
+        <input type="number" id="quantity" value="100" step="100" />
     </div>
-
+    <div>
+        <label for="total">Total:</label>
+        <span id="total">Calculating...</span>
+    </div>
     <button id="transfer" disabled>Stake</button>
     <p id="status">Status: Not logged in</p>
 
@@ -35,10 +38,9 @@
             chainId: '1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4', // Mainnet chain ID
             rpc: "https://wax.greymass.com", // Mainnet RPC URL
         };
-        const exponent = 22022305
+        const cpufrac = 22022305
         const netfrac = 6815707
-        const fixrateeos = 0.15
-        // สร้างการเชื่อมต่อกับ AnchorLink โดยใช้ AnchorLinkBrowserTransport จาก CDN
+        // สร้างการเชื่อมต่อกับ AnchorLink
         const transport = new AnchorLinkBrowserTransport();
         const link = new AnchorLink({
             transport,
@@ -59,74 +61,180 @@
                 document.getElementById('status').textContent = "Login failed.";
             }
         };
+        // อัปเดตค่า Total เมื่อเปลี่ยนค่าของ Stake
+        document.getElementById('quantity').addEventListener('input', async () => {
+            const quantity = parseFloat(document.getElementById('quantity').value.trim());
+            if (isNaN(quantity) || quantity <= 0) {
+                document.getElementById('total').textContent = "Invalid input";
+                return;
+            }
 
-        // ฟังก์ชันสำหรับการโอนเหรียญ WAX
+            // ดึงข้อมูล CPU Config
+            const cpuConfig = await fetchCPUConfig();
+            if (!cpuConfig) {
+                document.getElementById('total').textContent = "Error fetching config";
+                return;
+            }
+
+            // คำนวณค่าธรรมเนียม (Total)
+            const fee = calculatePowerUpFee(cpuConfig, quantity * 100000000); // ปรับ `extraUtilization` ตาม Stake
+            document.getElementById('total').textContent = `${fee.toFixed(8)} WAX`;
+        });
+
+        // ฟังก์ชันดึงข้อมูล CPU Config
+        async function fetchCPUConfig() {
+            const apiUrl = "https://api.waxdaobp.io/v1/chain/get_table_rows";
+            const payload = {
+                code: "eosio",
+                scope: "",
+                table: "powup.state",
+                lower_bound: "",
+                upper_bound: "",
+                index_position: 1,
+                key_type: "i64",
+                limit: 1,
+                reverse: false,
+                json: true,
+                show_payer: false,
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error fetching CPU config: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                return data.rows[0].cpu; // ดึงค่า config จากข้อมูลที่ส่งกลับ
+            } catch (error) {
+                console.error("Error fetching CPU config:", error);
+                return null;
+            }
+        }
+        async function fetchRate() {
+            const cpuConfig = await fetchCPUConfig();
+            const fee = calculatePowerUpFee(cpuConfig, 10000000000);
+            document.getElementById("total").textContent = `${fee.toFixed(8)} WAX`;
+        }
+        // ฟังก์ชันคำนวณค่าธรรมเนียม Power-Up Fee
+        function calculatePowerUpFee(cpuConfig, extraUtilization) {
+            const minPrice = parseFloat(cpuConfig.min_price.split(' ')[0]);
+            const maxPrice = parseFloat(cpuConfig.max_price.split(' ')[0]);
+            let currentUtilization = parseFloat(cpuConfig.utilization);
+            const adjustedUtilization = parseFloat(cpuConfig.adjusted_utilization);
+            const weight = parseFloat(cpuConfig.weight);
+            const exponent = parseFloat(cpuConfig.exponent);
+
+            let targetUtilization = currentUtilization + extraUtilization;
+            let totalFee = 0;
+
+            if (currentUtilization < adjustedUtilization) {
+                const exponentDifference = exponent - 1;
+                let feeForAdjustedUtilization = 0;
+
+                if (exponentDifference <= 0) {
+                    feeForAdjustedUtilization = maxPrice;
+                } else {
+                    feeForAdjustedUtilization = minPrice +
+                        (maxPrice - minPrice) * Math.pow(adjustedUtilization / weight, exponentDifference);
+                }
+
+                totalFee += (feeForAdjustedUtilization *
+                    Math.min(extraUtilization, adjustedUtilization - currentUtilization)) / weight;
+
+                currentUtilization = adjustedUtilization;
+            }
+
+            if (currentUtilization < targetUtilization) {
+                const priceSlope = (maxPrice - minPrice) / exponent;
+                const startRatio = currentUtilization / weight;
+                const endRatio = targetUtilization / weight;
+
+                totalFee += minPrice * (endRatio - startRatio) +
+                    priceSlope * (Math.pow(endRatio, exponent) - Math.pow(startRatio, exponent));
+
+            }
+            return totalFee;
+        }
+
+        // ฟังก์ชันสำหรับการโอน WAX
         document.getElementById('transfer').onclick = async () => {
             if (!session) {
                 alert("Please log in first.");
                 return;
             }
-            let pwu = []
-            const destination = document.getElementById('destination').value.trim();
-            const quantity = document.getElementById('quantity').value.trim();
 
-            if (!destination || !quantity || isNaN(quantity) || parseFloat(quantity) <= 0) {
+            const destination = document.getElementById('destination').value.trim();
+            const quantity = parseFloat(document.getElementById('quantity').value.trim());
+
+            if (!destination || isNaN(quantity) || quantity <= 0) {
                 alert("Please enter a valid destination account and amount.");
                 return;
             }
+
+            // ดึงข้อมูล CPU Config
+            const cpuConfig = await fetchCPUConfig();
+            //console.log(cpuConfig)
+            if (!cpuConfig) {
+                alert("Failed to fetch CPU configuration.");
+                return;
+            }
+
+            // คำนวณค่าธรรมเนียม
+            const fee = calculatePowerUpFee(cpuConfig, quantity * 100000000);
+            console.log(`Estimated Power-Up Fee: ${fee.toFixed(8)} WAX`);
+
+            let pwu = [];
             if (quantity <= 5000) {
                 const transferAction = {
                     account: 'eosio',
                     name: 'powerup',
                     authorization: [session.auth],
                     data: {
-                        cpu_frac: ((exponent * quantity)) + 10,
+                        cpu_frac:  ((cpufrac * quantity)) + 10,
                         days: 1,
-                        max_payment: `${parseFloat(fixrateeos * quantity / 100).toFixed(8)} WAX`,
+                        max_payment: `${(fee+0.1).toFixed(8)} WAX`,
                         net_frac: parseFloat(netfrac),
                         payer: session.auth.actor,
                         receiver: destination,
                     },
                 };
-                pwu.push(transferAction)
-            }
-            else {
-                const time = Math.ceil(quantity / 5000)
-                console.log(Math.ceil(time))
-                for (i = 1; i <= time; i++) {
-                    let value = 5000
-                    if (i === time && quantity % 5000) {
-                        value = quantity % 5000
-                    }
-                    console.log(i)
-                    console.log(value)
+                pwu.push(transferAction);
+            } else {
+                const parts = Math.ceil(quantity / 5000);
+                for (let i = 0; i < parts; i++) {
+                    let amount = i === parts - 1 ? quantity % 5000 : 5000;
                     const transferAction = {
                         account: 'eosio',
                         name: 'powerup',
                         authorization: [session.auth],
                         data: {
-                            cpu_frac: ((exponent * value)) + 10,
+                            cpu_frac: ((cpufrac * amount)) + 10,
                             days: 1,
-                            max_payment: `${parseFloat(fixrateeos * value / 100).toFixed(8)} WAX`,
+                            ax_payment: `${(fee+0.1).toFixed(8)} WAX`,
                             net_frac: parseFloat(netfrac),
                             payer: session.auth.actor,
                             receiver: destination,
                         },
                     };
-                    pwu.push(transferAction)
+                    pwu.push(transferAction);
                 }
             }
-
 
             try {
                 const result = await session.transact({ actions: pwu }, { blocksBehind: 3, expireSeconds: 30 });
                 document.getElementById('status').textContent = `Transfer successful: ${result.transactionId}`;
-                console.log("Transaction result:", result);
             } catch (error) {
                 console.error("Transfer error:", error);
-                document.getElementById('status').textContent = `Transfer failed : ${error}`;
+                document.getElementById('status').textContent = "Transfer failed.";
             }
         };
+        window.onload = fetchRate;
     </script>
 </body>
 
