@@ -194,9 +194,9 @@
                     name: 'powerup',
                     authorization: [session.auth],
                     data: {
-                        cpu_frac:  ((cpufrac * quantity)) + 10,
+                        cpu_frac: ((cpufrac * quantity)) + 10,
                         days: 1,
-                        max_payment: `${(fee+0.1).toFixed(8)} WAX`,
+                        max_payment: `${(fee + 0.1).toFixed(8)} WAX`,
                         net_frac: parseFloat(netfrac),
                         payer: session.auth.actor,
                         receiver: destination,
@@ -214,7 +214,7 @@
                         data: {
                             cpu_frac: ((cpufrac * amount)) + 10,
                             days: 1,
-                            max_payment: `${((amount/100*rate)+0.1).toFixed(8)} WAX`,
+                            max_payment: `${((amount / 100 * rate) + 0.1).toFixed(8)} WAX`,
                             net_frac: parseFloat(netfrac),
                             payer: session.auth.actor,
                             receiver: destination,
@@ -229,7 +229,7 @@
                 document.getElementById('status').textContent = `Transfer successful: ${result.transactionId}`;
             } catch (error) {
                 console.error("Transfer error:", error);
-                document.getElementById('status').textContent = "Transfer failed.";
+                document.getElementById('status').textContent = `Transfer failed : ${error}`;
             }
         };
         window.onload = fetchRate;
