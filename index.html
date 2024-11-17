@@ -196,7 +196,7 @@
                     data: {
                         cpu_frac: ((cpufrac * quantity)) + 10,
                         days: 1,
-                        max_payment: `${(fee + 0.1).toFixed(8)} WAX`,
+                        max_payment: `${(fee + 1).toFixed(8)} WAX`,
                         net_frac: parseFloat(netfrac),
                         payer: session.auth.actor,
                         receiver: destination,
@@ -205,8 +205,11 @@
                 pwu.push(transferAction);
             } else {
                 const parts = Math.ceil(quantity / 5000);
-                for (let i = 0; i < parts; i++) {
-                    let amount = i === parts - 1 ? quantity % 5000 : 5000;
+                for (let i = 1; i <= parts; i++) {
+                    let amount = 5000
+                    if (i === parts && quantity % 5000) {
+                        amount = quantity % 5000
+                    }
                     const transferAction = {
                         account: 'eosio',
                         name: 'powerup',
@@ -214,7 +217,7 @@
                         data: {
                             cpu_frac: ((cpufrac * amount)) + 10,
                             days: 1,
-                            max_payment: `${((amount / 100 * rate) + 0.1).toFixed(8)} WAX`,
+                            max_payment: `${((amount / 100 * rate) + 1).toFixed(8)} WAX`,
                             net_frac: parseFloat(netfrac),
                             payer: session.auth.actor,
                             receiver: destination,
