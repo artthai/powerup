@@ -20,7 +20,11 @@
     </div>
     <button onclick="addInputRow()">Add More</button> <!-- Button to add new rows -->
     <div>
-        <label for="total">Total:</label>
+        <label for="totalstake">Total Stake:</label>
+        <span id="totalstake">Calculating...</span>
+    </div>
+    <div>
+        <label for="total">Total Fee:</label>
         <span id="total">Calculating...</span>
     </div>
     <button id="transfer" disabled>Stake</button>
@@ -95,6 +99,7 @@
             if (totalStake > 0) {
                 const fee = totalStake * rate / 100;
                 document.getElementById('total').textContent = `${fee.toFixed(8)} WAX`;
+                document.getElementById('totalstake').textContent = `${totalStake} WAX`;
             } else {
                 document.getElementById('total').textContent = "Invalid input";
             }
