@@ -80,7 +80,7 @@
             let inputText = document.getElementById('dataInput').value;
             // Process each line individually to maintain line breaks.
             let lines = inputText.split('\n');
-            lines = lines.map(line => line.replace(/\s*:\s*/g, ':').trim()); // Remove spaces around colons and trim each line
+            lines = lines.map(line => line.replace(/\s*:\s*/g, ' = ').trim()); // Remove spaces around colons and trim each line
             document.getElementById('currentInput').textContent = lines.join('\n');
         }
         // อัปเดตค่า Total เมื่อเปลี่ยนค่าของ Stake
