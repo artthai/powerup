@@ -18,7 +18,7 @@
             <input type="text" class="destination" placeholder="Enter destination account" />
 
             <label for="quantity">Stake (WAX):</label>
-            <input type="number" class="quantity" value="100" step="100" />
+            <input type="number" class="quantity" value="100" step="100" onchange="updateTotal()" />
         </div>
     </div>
     <button onclick="addInputRow()">Add More</button> <!-- Button to add new rows -->
