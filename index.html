@@ -138,6 +138,7 @@
             const cpuConfig = await fetchCPUConfig();
             const fee = calculatePowerUpFee(cpuConfig, 10000000000);
             rate = fee
+            updateTotal()
             document.getElementById("total").textContent = `${fee.toFixed(8)} WAX`;
         }
         // ฟังก์ชันคำนวณค่าธรรมเนียม Power-Up Fee
