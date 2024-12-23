@@ -64,20 +64,6 @@
             }
         };
         // อัปเดตค่า Total เมื่อเปลี่ยนค่าของ Stake
-        document.getElementById('quantity').addEventListener('input', async () => {
-            const quantity = parseFloat(document.getElementById('quantity').value.trim());
-            console.log(rate)
-            if (isNaN(quantity) || quantity <= 0) {
-                document.getElementById('total').textContent = "Invalid input";
-                return;
-            }
-
-
-
-            // คำนวณค่าธรรมเนียม (Total)
-            const fee = quantity * rate / 100 // ปรับ `extraUtilization` ตาม Stake
-            document.getElementById('total').textContent = `${fee.toFixed(8)} WAX`;
-        });
         function addInputRow() {
             const container = document.getElementById('inputContainer');
             const newRow = document.createElement('div');
