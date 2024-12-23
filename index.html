@@ -13,13 +13,7 @@
 
     <!-- ช่องสำหรับใส่ปลายทางบัญชี -->
     <div id="inputContainer">
-        <div class="inputRow">
-            <label for="destination">Destination Account:</label>
-            <input type="text" class="destination" placeholder="Enter destination account" />
-
-            <label for="quantity">Stake (WAX):</label>
-            <input type="number" class="quantity" value="100" step="100" onchange="updateTotal()" />
-        </div>
+        <!-- Input rows will be added here dynamically -->
     </div>
     <button onclick="addInputRow()">Add More</button> <!-- Button to add new rows -->
     <div>
@@ -64,24 +58,27 @@
             }
         };
         // อัปเดตค่า Total เมื่อเปลี่ยนค่าของ Stake
-        function addInputRow() {
+        function addInputRow(destination = '', quantity = 100) {
             const container = document.getElementById('inputContainer');
             const newRow = document.createElement('div');
             newRow.innerHTML = `
                 <div class="inputRow">
                     <label>Destination Account:</label>
-                    <input type="text" class="destination" placeholder="Enter destination account" />
+                    <input type="text" class="destination" placeholder="Enter destination account" value="${destination}" />
                     <label>Stake (WAX):</label>
-                    <input type="number" class="quantity" value="100" step="100" />
+                    <input type="number" class="quantity" value="${quantity}" step="100" onchange="updateTotal()" />
                     <button onclick="removeInputRow(this)">Delete</button>
                 </div>
             `;
             container.appendChild(newRow);
             newRow.querySelector('.quantity').addEventListener('input', updateTotal);
+            newRow.querySelector('.destination').addEventListener('change', saveData);
+            newRow.querySelector('.quantity').addEventListener('change', saveData);
         }
         function removeInputRow(element) {
             element.parentNode.remove();
             updateTotal(); // Recalculate total when a row is removed
+            saveData();
         }
         function updateTotal() {
             const quantities = document.querySelectorAll('.quantity');
@@ -98,6 +95,25 @@
             } else {
                 document.getElementById('total').textContent = "Invalid input";
             }
+            saveData();
+        }
+        function saveData() {
+            const data = [];
+            document.querySelectorAll('.inputRow').forEach(row => {
+                const destination = row.querySelector('.destination').value;
+                const quantity = row.querySelector('.quantity').value;
+                data.push({ destination, quantity });
+            });
+            localStorage.setItem('inputData', JSON.stringify(data));
+        }
+        function loadData() {
+            const data = JSON.parse(localStorage.getItem('inputData'));
+            if (data) {
+                data.forEach(item => addInputRow(item.destination, item.quantity));
+            } else {
+                addInputRow(); // Add at least one row by default
+            }
+            updateTotal();
         }
         // ฟังก์ชันดึงข้อมูล CPU Config
         async function fetchCPUConfig() {
@@ -136,10 +152,11 @@
         }
         async function fetchRate() {
             const cpuConfig = await fetchCPUConfig();
-            const fee = calculatePowerUpFee(cpuConfig, 10000000000);
-            rate = fee
-            updateTotal()
-            document.getElementById("total").textContent = `${fee.toFixed(8)} WAX`;
+            if (cpuConfig) {
+                const fee = calculatePowerUpFee(cpuConfig, 10000000000);
+                rate = fee;
+                updateTotal(); // Update total after fetching rate
+            }
         }
         // ฟังก์ชันคำนวณค่าธรรมเนียม Power-Up Fee
         function calculatePowerUpFee(cpuConfig, extraUtilization) {
@@ -189,43 +206,44 @@
                 return;
             }
 
-            const destination = document.getElementById('destination').value.trim();
-            const quantity = parseFloat(document.getElementById('quantity').value.trim());
+            const destinations = document.querySelectorAll('.destination');
+            const quantities = document.querySelectorAll('.quantity');
+            let actions = [];
+            for (let i = 0; i < destinations.length; i++) {
+                let destination = destinations[i].value.trim();
+                let quantity = parseFloat(quantities[i].value.trim());
+                if (!destination || isNaN(quantity) || quantity <= 0) {
+                    alert("Please enter valid destination accounts and amounts.");
+                    return;
+                }
 
-            if (!destination || isNaN(quantity) || quantity <= 0) {
-                alert("Please enter a valid destination account and amount.");
-                return;
-            }
+                // Fetch CPU Config (if not already done, this can be optimized)
+                let cpuConfig = await fetchCPUConfig();
+                if (!cpuConfig) {
+                    alert("Failed to fetch CPU configuration.");
+                    return;
+                }
 
-            // ดึงข้อมูล CPU Config
-            const cpuConfig = await fetchCPUConfig();
-            //console.log(cpuConfig)
-            if (!cpuConfig) {
-                alert("Failed to fetch CPU configuration.");
-                return;
-            }
-
-            // คำนวณค่าธรรมเนียม
-            const fee = calculatePowerUpFee(cpuConfig, quantity * 100000000);
-            console.log(`Estimated Power-Up Fee: ${fee.toFixed(8)} WAX`);
-
-            let pwu = [];
-            if (quantity <= 5000) {
-                const transferAction = {
+                // Calculate fees and create transfer actions
+                let fee = calculatePowerUpFee(cpuConfig, quantity * 100000000);
+                let partPayment = (fee + 1).toFixed(8);
+                if (quantity <= 5000) {
+                const action = {
                     account: 'eosio',
                     name: 'powerup',
                     authorization: [session.auth],
                     data: {
-                        cpu_frac: ((cpufrac * quantity)) + 10,
+                        cpu_frac: quantity * cpufrac + 10,
                         days: 1,
-                        max_payment: `${(fee + 1).toFixed(8)} WAX`,
-                        net_frac: parseFloat(netfrac*2),
+                        max_payment: `${partPayment} WAX`,
+                        net_frac: netfrac * 2,
                         payer: session.auth.actor,
                         receiver: destination,
                     },
                 };
-                pwu.push(transferAction);
-            } else {
+                actions.push(action);
+            }
+            else{
                 const parts = Math.ceil(quantity / 5000);
                 for (let i = 1; i <= parts; i++) {
                     let amount = 5000
@@ -245,19 +263,23 @@
                             receiver: destination,
                         },
                     };
-                    pwu.push(transferAction);
-                }
+                    actions.push(transferAction);
             }
-
+            }
+        }
             try {
-                const result = await session.transact({ actions: pwu }, { blocksBehind: 3, expireSeconds: 30 });
+                const result = await session.transact({ actions }, { blocksBehind: 3, expireSeconds: 30 });
                 document.getElementById('status').textContent = `Transfer successful: ${result.transactionId}`;
             } catch (error) {
                 console.error("Transfer error:", error);
-                document.getElementById('status').textContent = `Transfer failed : ${error}`;
+                document.getElementById('status').textContent = `Transfer failed: ${error}`;
             }
         };
-        window.onload = fetchRate;
+        //window.onload = fetchRate;
+        window.onload = () => {
+            fetchRate();
+            loadData();
+        };
     </script>
 </body>
 
