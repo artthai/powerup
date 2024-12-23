@@ -15,10 +15,19 @@
         <span id="rate">Calculating...</span>
     </div>
     <!-- ช่องสำหรับใส่ปลายทางบัญชี -->
-    <div id="inputContainer">
-        <!-- Input rows will be added here dynamically -->
+    <div>
+        <label for="dataInput">Enter Data (format "Wallet:Stake"):</label>
     </div>
-    <button onclick="addInputRow()">Add More</button> <!-- Button to add new rows -->
+    <div><textarea id="dataInput" placeholder="e.g.,
+        xxxx:100
+        yyyy:200" rows="10" cols="30" oninput="saveData()"></textarea>
+    </div>
+    
+    <div>
+        <label for="currentInput">Current Data:</label>
+        <pre id="currentInput"></pre>
+    </div>
+    <button onclick="parseInput()">Save</button>
     <div>
         <label for="totalstake">Total Stake:</label>
         <span id="totalstake">Calculating...</span>
@@ -35,6 +44,9 @@
     <script src="https://unpkg.com/anchor-link-browser-transport@3"></script>
 
     <script>
+        let [destination, stake] = []
+        let target = []
+        let stakeval = []
         // กำหนดการตั้งค่าของเครือข่าย WAX
         const network = {
             chainId: '1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4', // Mainnet chain ID
@@ -64,29 +76,14 @@
                 document.getElementById('status').textContent = "Login failed.";
             }
         };
+        function updateCurrentInput() {
+            let inputText = document.getElementById('dataInput').value;
+            // Process each line individually to maintain line breaks.
+            let lines = inputText.split('\n');
+            lines = lines.map(line => line.replace(/\s*:\s*/g, ':').trim()); // Remove spaces around colons and trim each line
+            document.getElementById('currentInput').textContent = lines.join('\n');
+        }
         // อัปเดตค่า Total เมื่อเปลี่ยนค่าของ Stake
-        function addInputRow(destination = '', quantity = 100) {
-            const container = document.getElementById('inputContainer');
-            const newRow = document.createElement('div');
-            newRow.innerHTML = `
-                <div class="inputRow">
-                    <label>Destination Account:</label>
-                    <input type="text" class="destination" placeholder="Enter destination account" value="${destination}" />
-                    <label>Stake (WAX):</label>
-                    <input type="number" class="quantity" value="${quantity}" step="100" onchange="updateTotal()" />
-                    <button onclick="removeInputRow(this)">Delete</button>
-                </div>
-            `;
-            container.appendChild(newRow);
-            newRow.querySelector('.quantity').addEventListener('input', updateTotal);
-            newRow.querySelector('.destination').addEventListener('change', saveData);
-            newRow.querySelector('.quantity').addEventListener('change', saveData);
-        }
-        function removeInputRow(element) {
-            element.parentNode.remove();
-            updateTotal(); // Recalculate total when a row is removed
-            saveData();
-        }
         function updateTotal() {
             const quantities = document.querySelectorAll('.quantity');
             let totalStake = 0;
@@ -105,21 +102,44 @@
             }
             saveData();
         }
-        function saveData() {
-            const data = [];
-            document.querySelectorAll('.inputRow').forEach(row => {
-                const destination = row.querySelector('.destination').value;
-                const quantity = row.querySelector('.quantity').value;
-                data.push({ destination, quantity });
+        function parseInput() {
+            target = []
+            stakeval = []
+            const input = document.getElementById('dataInput').value;
+            const lines = input.split('\n');
+            let totalStake = 0;
+
+            lines.forEach(line => {
+                const cleanedLine = line.trim().replace(/\s*:\s*/g, ':');
+                [destination, stake] = cleanedLine.split(':').map(item => item.trim());
+                if (destination && stake && !isNaN(parseFloat(stake))) {
+                    totalStake += parseFloat(stake);
+                }
+                target.push(destination)
+                stakeval.push(stake)
             });
-            localStorage.setItem('inputData', JSON.stringify(data));
-        }
-        function loadData() {
-            const data = JSON.parse(localStorage.getItem('inputData'));
-            if (data) {
-                data.forEach(item => addInputRow(item.destination, item.quantity));
+            console.log(target)
+            console.log(stakeval)
+            if (totalStake > 0) {
+                const totalFee = totalStake * rate / 100;
+                document.getElementById('totalstake').textContent = `${totalStake} WAX`;
+                document.getElementById('total').textContent = `${totalFee.toFixed(8)} WAX`;
             } else {
-                addInputRow(); // Add at least one row by default
+                document.getElementById('totalstake').textContent = "Invalid input";
+                document.getElementById('total').textContent = "Invalid input";
+            }
+            updateCurrentInput()
+        }
+        function saveData() {
+            const dataInput = document.getElementById('dataInput').value;
+            localStorage.setItem('dataInput', dataInput);
+        }
+        
+        function loadData() {
+            const savedData = localStorage.getItem('dataInput');
+            if (savedData) {
+                document.getElementById('dataInput').value = savedData;
+                updateCurrentInput();  // To update the display of current input
             }
             updateTotal();
         }
@@ -215,12 +235,10 @@
                 return;
             }
 
-            const destinations = document.querySelectorAll('.destination');
-            const quantities = document.querySelectorAll('.quantity');
             let actions = [];
-            for (let i = 0; i < destinations.length; i++) {
-                let destination = destinations[i].value.trim();
-                let quantity = parseFloat(quantities[i].value.trim());
+            for (let i = 0; i < target.length; i++) {
+                let destination = target[i];
+                let quantity = parseFloat(stakeval[i]);
                 if (!destination || isNaN(quantity) || quantity <= 0) {
                     alert("Please enter valid destination accounts and amounts.");
                     return;
@@ -237,45 +255,45 @@
                 let fee = calculatePowerUpFee(cpuConfig, quantity * 100000000);
                 let partPayment = (fee + 1).toFixed(8);
                 if (quantity <= 5000) {
-                const action = {
-                    account: 'eosio',
-                    name: 'powerup',
-                    authorization: [session.auth],
-                    data: {
-                        cpu_frac: quantity * cpufrac + 10,
-                        days: 1,
-                        max_payment: `${partPayment} WAX`,
-                        net_frac: netfrac * 2,
-                        payer: session.auth.actor,
-                        receiver: destination,
-                    },
-                };
-                actions.push(action);
-            }
-            else{
-                const parts = Math.ceil(quantity / 5000);
-                for (let i = 1; i <= parts; i++) {
-                    let amount = 5000
-                    if (i === parts && quantity % 5000) {
-                        amount = quantity % 5000
-                    }
-                    const transferAction = {
+                    const action = {
                         account: 'eosio',
                         name: 'powerup',
                         authorization: [session.auth],
                         data: {
-                            cpu_frac: ((cpufrac * amount)) + 10,
+                            cpu_frac: quantity * cpufrac + 10,
                             days: 1,
-                            max_payment: `${((amount / 100 * rate) + 1).toFixed(8)} WAX`,
-                            net_frac: parseFloat(netfrac*2),
+                            max_payment: `${partPayment} WAX`,
+                            net_frac: netfrac * 2,
                             payer: session.auth.actor,
                             receiver: destination,
                         },
                     };
-                    actions.push(transferAction);
+                    actions.push(action);
+                }
+                else {
+                    const parts = Math.ceil(quantity / 5000);
+                    for (let i = 1; i <= parts; i++) {
+                        let amount = 5000
+                        if (i === parts && quantity % 5000) {
+                            amount = quantity % 5000
+                        }
+                        const transferAction = {
+                            account: 'eosio',
+                            name: 'powerup',
+                            authorization: [session.auth],
+                            data: {
+                                cpu_frac: ((cpufrac * amount)) + 10,
+                                days: 1,
+                                max_payment: `${((amount / 100 * rate) + 1).toFixed(8)} WAX`,
+                                net_frac: parseFloat(netfrac * 2),
+                                payer: session.auth.actor,
+                                receiver: destination,
+                            },
+                        };
+                        actions.push(transferAction);
+                    }
+                }
             }
-            }
-        }
             try {
                 const result = await session.transact({ actions }, { blocksBehind: 3, expireSeconds: 30 });
                 document.getElementById('status').textContent = `Transfer successful: ${result.transactionId}`;
