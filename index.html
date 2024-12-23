@@ -10,7 +10,10 @@
 <body>
     <h1>PowerUP</h1>
     <button id="login">Login with Anchor Wallet</button>
-
+    <div>
+        <label for="rate">Rate:</label>
+        <span id="rate">Calculating...</span>
+    </div>
     <!-- ช่องสำหรับใส่ปลายทางบัญชี -->
     <div id="inputContainer">
         <!-- Input rows will be added here dynamically -->
@@ -157,6 +160,7 @@
                 rate = fee;
                 updateTotal(); // Update total after fetching rate
             }
+            document.getElementById('rate').textContent = `${rate.toFixed(8)} WAX`;
         }
         // ฟังก์ชันคำนวณค่าธรรมเนียม Power-Up Fee
         function calculatePowerUpFee(cpuConfig, extraUtilization) {
