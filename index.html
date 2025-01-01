@@ -1,12 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PowerUp</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            color: #ccc; /* Light gray text for better readability on dark backgrounds */
+            background-color: #000; /* Black background */
+            padding: 20px;
+            margin: 0;
+        }
+        h1 {
+            color: #fff; /* White text for headings */
+        }
+        button {
+            background-color: #444; /* Darker button for better contrast */
+            color: #fff; /* White text */
+            border: none;
+            padding: 10px 20px;
+            margin: 10px 0;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #555; /* Slightly lighter gray on hover */
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 15px;
+            display: inline-block;
+            border: 1px solid #333; /* Darker borders for inputs */
+            background-color: #222; /* Darker backgrounds for inputs */
+            color: #ddd; /* Light gray text */
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        label {
+            margin-top: 20px;
+            display: block;
+            font-weight: bold;
+            color: #ccc; /* Light gray for labels */
+        }
+        #responseDisplay, #currentInput {
+            background-color: #222; /* Dark background for display areas */
+            border: 1px solid #333;
+            padding: 10px;
+            color: #ccc; /* Light gray text */
+            margin-top: 5px;
+            white-space: pre-wrap; /* Maintains whitespace formatting */
+        }
+    </style>
 </head>
-
 <body>
     <h1>PowerUP</h1>
     <button id="login">Login with Anchor Wallet</button>
@@ -14,13 +61,9 @@
         <label for="rate">Rate:</label>
         <span id="rate">Calculating...</span>
     </div>
-    <!-- ช่องสำหรับใส่ปลายทางบัญชี -->
     <div>
         <label for="dataInput">Enter Data (format "Wallet:Stake"):</label>
-    </div>
-    <div><textarea id="dataInput" placeholder="e.g.,
-        xxxx:100
-        yyyy:200" rows="10" cols="30" oninput="saveData()"></textarea>
+        <textarea id="dataInput" placeholder="e.g.,\nxxxx:100\nyyyy:200" rows="10" cols="30" oninput="saveData()"></textarea>
     </div>
     
     <div>
@@ -38,11 +81,8 @@
     </div>
     <button id="transfer" disabled>Stake</button>
     <p id="status">Status: Not logged in</p>
-
-    <!-- เพิ่ม CDN สำหรับ AnchorLink และ AnchorLinkBrowserTransport -->
     <script src="https://unpkg.com/anchor-link@3"></script>
     <script src="https://unpkg.com/anchor-link-browser-transport@3"></script>
-
     <script>
         let [destination, stake] = []
         let target = []
@@ -309,5 +349,5 @@
         };
     </script>
 </body>
-
 </html>
+
