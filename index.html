@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,65 +8,90 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            color: #ccc; /* Light gray text for better readability on dark backgrounds */
-            background-color: #000; /* Black background */
+            color: #ccc;
+            /* Light gray text for better readability on dark backgrounds */
+            background-color: #000;
+            /* Black background */
             padding: 20px;
             margin: 0;
         }
+
         h1 {
-            color: #fff; /* White text for headings */
+            color: #fff;
+            /* White text for headings */
         }
+
         button {
-            background-color: #444; /* Darker button for better contrast */
-            color: #fff; /* White text */
+            background-color: #444;
+            /* Darker button for better contrast */
+            color: #fff;
+            /* White text */
             border: none;
             padding: 10px 20px;
             margin: 10px 0;
             cursor: pointer;
             border-radius: 5px;
         }
+
         button:hover {
-            background-color: #555; /* Slightly lighter gray on hover */
+            background-color: #555;
+            /* Slightly lighter gray on hover */
         }
-        input, textarea {
+
+        input,
+        textarea {
             width: 100%;
             padding: 8px;
             margin: 5px 0 15px;
             display: inline-block;
-            border: 1px solid #333; /* Darker borders for inputs */
-            background-color: #222; /* Darker backgrounds for inputs */
-            color: #ddd; /* Light gray text */
+            border: 1px solid #333;
+            /* Darker borders for inputs */
+            background-color: #222;
+            /* Darker backgrounds for inputs */
+            color: #ddd;
+            /* Light gray text */
             border-radius: 4px;
             box-sizing: border-box;
         }
+
         label {
             margin-top: 20px;
             display: block;
             font-weight: bold;
-            color: #ccc; /* Light gray for labels */
+            color: #ccc;
+            /* Light gray for labels */
         }
-        #responseDisplay, #currentInput {
-            background-color: #222; /* Dark background for display areas */
+
+        #responseDisplay,
+        #currentInput {
+            background-color: #222;
+            /* Dark background for display areas */
             border: 1px solid #333;
             padding: 10px;
-            color: #ccc; /* Light gray text */
+            color: #ccc;
+            /* Light gray text */
             margin-top: 5px;
-            white-space: pre-wrap; /* Maintains whitespace formatting */
+            white-space: pre-wrap;
+            /* Maintains whitespace formatting */
         }
     </style>
 </head>
+
 <body>
     <h1>PowerUP</h1>
     <button id="login">Login with Anchor Wallet</button>
+    <button id="logout" style="display: none;">Logout</button>
+    <p id="user">User: Not logged in</p>
     <div>
         <label for="rate">Rate:</label>
         <span id="rate">Calculating...</span>
     </div>
     <div>
         <label for="dataInput">Enter Data (format "Wallet:Stake"):</label>
-        <textarea id="dataInput" placeholder="e.g.,\nxxxx:100\nyyyy:200" rows="10" cols="30" oninput="saveData()"></textarea>
+        <textarea id="dataInput" placeholder="e.g.,\nxxxx:100\nyyyy:200" rows="10" cols="30"
+            oninput="saveData()"></textarea>
     </div>
-    
+
     <div>
         <label for="currentInput">Current Data:</label>
         <pre id="currentInput"></pre>
@@ -107,15 +133,21 @@
         // ฟังก์ชันสำหรับการ Login
         document.getElementById('login').onclick = async () => {
             try {
-                const result = await link.login('mydapp');
+                const result = await link.login('jomyut');
                 session = result.session;
-                document.getElementById('status').textContent = `Status: Logged in as ${session.auth.actor}`;
-                document.getElementById('transfer').disabled = false;
+                updateUIAfterLogin();
             } catch (error) {
                 console.error("Login error:", error);
                 document.getElementById('status').textContent = "Login failed.";
             }
         };
+        // ฟังก์ชันสำหรับการ Logout
+        document.getElementById('logout').onclick = async () => {
+            await link.clearSessions('jomyut');
+            session = null;
+            updateUIAfterLogout();
+        };
+
         function updateCurrentInput() {
             let inputText = document.getElementById('dataInput').value;
             // Process each line individually to maintain line breaks.
@@ -158,8 +190,8 @@
                 target.push(destination)
                 stakeval.push(stake)
             });
-            console.log(target)
-            console.log(stakeval)
+            //console.log(target)
+            //console.log(stakeval)
             if (totalStake > 0) {
                 const totalFee = totalStake * rate / 100;
                 document.getElementById('totalstake').textContent = `${totalStake} WAX`;
@@ -174,7 +206,7 @@
             const dataInput = document.getElementById('dataInput').value;
             localStorage.setItem('dataInput', dataInput);
         }
-        
+
         function loadData() {
             const savedData = localStorage.getItem('dataInput');
             if (savedData) {
@@ -183,6 +215,24 @@
             }
             updateTotal();
         }
+        // อัปเดต UI หลังจากล็อกอิน
+        function updateUIAfterLogin() {
+            document.getElementById('status').textContent = `Status: Logged in as ${session.auth.actor}`;
+            document.getElementById('user').textContent = `User: ${session.auth.actor}`;
+            document.getElementById('transfer').disabled = false;
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('logout').style.display = 'inline-block';
+        }
+
+        // อัปเดต UI หลังจากล็อกเอาท์
+        function updateUIAfterLogout() {
+            document.getElementById('status').textContent = "Status: Not logged in";
+            document.getElementById('user').textContent = `User: Not logged in`;
+            document.getElementById('transfer').disabled = true;
+            document.getElementById('login').style.display = 'inline-block';
+            document.getElementById('logout').style.display = 'none';
+        }
+
         // ฟังก์ชันดึงข้อมูล CPU Config
         async function fetchCPUConfig() {
             const apiUrl = "https://api.waxdaobp.io/v1/chain/get_table_rows";
@@ -226,6 +276,18 @@
                 updateTotal(); // Update total after fetching rate
             }
             document.getElementById('rate').textContent = `${rate.toFixed(8)} WAX`;
+        }
+        async function restoreSession() {
+            try {
+                const result = await link.restoreSession('jomyut');
+                if (result) {
+                    session = result;
+                    updateUIAfterLogin();
+
+                }
+            } catch (error) {
+                console.error("Session restore failed:", error);
+            }
         }
         // ฟังก์ชันคำนวณค่าธรรมเนียม Power-Up Fee
         function calculatePowerUpFee(cpuConfig, extraUtilization) {
@@ -343,11 +405,12 @@
             }
         };
         //window.onload = fetchRate;
-        window.onload = () => {
+        window.onload = async () => {
+            await restoreSession();
             fetchRate();
             loadData();
         };
     </script>
 </body>
-</html>
 
+</html>
