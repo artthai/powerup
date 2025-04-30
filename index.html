@@ -355,7 +355,7 @@
 
                 // Calculate fees and create transfer actions
                 let fee = calculatePowerUpFee(cpuConfig, quantity * 100000000);
-                let partPayment = (fee + 1).toFixed(8);
+                let partPayment = (fee + 2).toFixed(8);
                 if (quantity <= 5000) {
                     const action = {
                         account: 'eosio',
