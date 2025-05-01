@@ -386,7 +386,7 @@
                             data: {
                                 cpu_frac: ((cpufrac * amount)) + 10,
                                 days: 1,
-                                max_payment: `${((amount / 100 * rate) + (quantity*0.3/100)).toFixed(8)} WAX`,
+                                max_payment: `${((amount / 100 * rate) + (amount*0.3/100)).toFixed(8)} WAX`,
                                 net_frac: parseFloat(netfrac * 2),
                                 payer: session.auth.actor,
                                 receiver: destination,
