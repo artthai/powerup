@@ -81,10 +81,20 @@
     <h1>PowerUP</h1>
     <button id="login">Login with Anchor Wallet</button>
     <button id="logout" style="display: none;">Logout</button>
+    <button class="back-button" onclick="window.location.href='/';">Back to Home</button>
     <p id="user">User: Not logged in</p>
     <div>
         <label for="rate">Rate:</label>
         <span id="rate">Calculating...</span>
+    </div>
+    <div>
+        <label for="cpufrac">CPU Frac:</label>
+        <input type="number" id="cpufrac" value="5709311" oninput="updateFractions()" />
+    </div>
+
+    <div>
+        <label for="netfrac">NET Frac:</label>
+        <input type="number" id="netfrac" value="1767035" oninput="updateFractions()" />
     </div>
     <div>
         <label for="dataInput">Enter Data (format "Wallet:Stake"):</label>
@@ -107,8 +117,8 @@
     </div>
     <button id="transfer" disabled>Stake</button>
     <p id="status">Status: Not logged in</p>
-    <script src="https://unpkg.com/anchor-link@3"></script>
-    <script src="https://unpkg.com/anchor-link-browser-transport@3"></script>
+    <script src="public/js/anchor-link.js"></script>
+    <script src="public/js/anchor-link-browser-transport.js"></script>
     <script>
         let [destination, stake] = []
         let target = []
@@ -118,8 +128,8 @@
             chainId: '1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4', // Mainnet chain ID
             rpc: "https://wax.greymass.com", // Mainnet RPC URL
         };
-        const cpufrac = 5709311
-        const netfrac = 1767035
+        let cpufrac
+        let netfrac 
         let rate = 0
         // สร้างการเชื่อมต่อกับ AnchorLink
         const transport = new AnchorLinkBrowserTransport();
@@ -147,7 +157,12 @@
             session = null;
             updateUIAfterLogout();
         };
-
+        function updateFractions() {
+            const cpuInput = parseInt(document.getElementById('cpufrac').value);
+            const netInput = parseInt(document.getElementById('netfrac').value);
+            localStorage.setItem("cpufrac", cpuInput);
+            localStorage.setItem("netfrac", netInput);
+        }
         function updateCurrentInput() {
             let inputText = document.getElementById('dataInput').value;
             // Process each line individually to maintain line breaks.
@@ -214,6 +229,20 @@
                 updateCurrentInput();  // To update the display of current input
             }
             updateTotal();
+        }
+        function loadCPUNETfrac() {
+            const savedCpu = localStorage.getItem("cpufrac");
+            const savedNet = localStorage.getItem("netfrac");
+
+            if (savedCpu) {
+                cpufrac = parseInt(savedCpu);
+                document.getElementById('cpufrac').value = cpufrac;
+            }
+
+            if (savedNet) {
+                netfrac = parseInt(savedNet);
+                document.getElementById('netfrac').value = netfrac;
+            }
         }
         // อัปเดต UI หลังจากล็อกอิน
         function updateUIAfterLogin() {
@@ -336,7 +365,7 @@
                 alert("Please log in first.");
                 return;
             }
-
+            updateFractions();
             let actions = [];
             for (let i = 0; i < target.length; i++) {
                 let destination = target[i];
@@ -355,7 +384,7 @@
 
                 // Calculate fees and create transfer actions
                 let fee = calculatePowerUpFee(cpuConfig, quantity * 100000000);
-                let partPayment = (fee + (quantity*0.03/100)).toFixed(8)//(fee + 2).toFixed(8);
+                let partPayment = (fee + (quantity * 0.03 / 100)).toFixed(8)//(fee + 2).toFixed(8);
                 if (quantity <= 5000) {
                     const action = {
                         account: 'eosio',
@@ -386,7 +415,7 @@
                             data: {
                                 cpu_frac: ((cpufrac * amount)) + 10,
                                 days: 1,
-                                max_payment: `${((amount / 100 * rate) + (amount*0.03/100)).toFixed(8)} WAX`,
+                                max_payment: `${((amount / 100 * rate) + (amount * 0.03 / 100)).toFixed(8)} WAX`,
                                 net_frac: parseFloat(netfrac * 2),
                                 payer: session.auth.actor,
                                 receiver: destination,
@@ -409,6 +438,7 @@
             await restoreSession();
             fetchRate();
             loadData();
+            loadCPUNETfrac()
         };
     </script>
 </body>
