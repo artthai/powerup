@@ -128,8 +128,8 @@
             chainId: '1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4', // Mainnet chain ID
             rpc: "https://wax.greymass.com", // Mainnet RPC URL
         };
-        let cpufrac
-        let netfrac 
+        let cpufrac = 5709311
+        let netfrac = 1767035
         let rate = 0
         // สร้างการเชื่อมต่อกับ AnchorLink
         const transport = new AnchorLinkBrowserTransport();
@@ -160,8 +160,15 @@
         function updateFractions() {
             const cpuInput = parseInt(document.getElementById('cpufrac').value);
             const netInput = parseInt(document.getElementById('netfrac').value);
-            localStorage.setItem("cpufrac", cpuInput);
-            localStorage.setItem("netfrac", netInput);
+            if (!isNaN(cpuInput)) {
+                cpufrac = cpuInput;
+                localStorage.setItem("cpufrac", cpufrac);
+            }
+
+            if (!isNaN(netInput)) {
+                netfrac = netInput;
+                localStorage.setItem("netfrac", netfrac);
+            }
         }
         function updateCurrentInput() {
             let inputText = document.getElementById('dataInput').value;
